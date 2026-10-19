@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Respiratory Rate Counter</title>
+<meta name="description" content="Tap once per breath; the respiratory rate is calculated from the time between taps.">
+<style>
+:root{
+  --bg:#f5f6f8;--surface:#fff;--surface-2:#f0f2f5;--ink:#15181d;--ink-2:#3d4450;--ink-3:#6b7380;
+  --rule:#e3e6eb;--rule-2:#cfd4db;--acc:#0e7c86;--acc-ink:#fff;
+  --k-teal:#0e7c86;--k-blue:#2f63c9;--k-amber:#b26a00;--k-green:#2e7d32;--k-red:#c62828;--k-violet:#6a4bc4;
+  --s0:#2e7d32;--s1:#9a7b00;--s2:#c26100;--s3:#c62828;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1216;--surface:#171b21;--surface-2:#1f242c;--ink:#e9edf2;--ink-2:#c3cad4;--ink-3:#8c95a2;
+  --rule:#272d36;--rule-2:#353d48;--acc:#3cc0c9;--acc-ink:#062124;
+  --k-teal:#3cc0c9;--k-blue:#77a2f2;--k-amber:#e6a23c;--k-green:#66bb6a;--k-red:#ef6b6b;--k-violet:#a58cf0;
+  --s0:#66bb6a;--s1:#e0c040;--s2:#f0913a;--s3:#ef6b6b;color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#0f1216;--surface:#171b21;--surface-2:#1f242c;--ink:#e9edf2;--ink-2:#c3cad4;--ink-3:#8c95a2;
+  --rule:#272d36;--rule-2:#353d48;--acc:#3cc0c9;--acc-ink:#062124;
+  --k-teal:#3cc0c9;--k-blue:#77a2f2;--k-amber:#e6a23c;--k-green:#66bb6a;--k-red:#ef6b6b;--k-violet:#a58cf0;
+  --s0:#66bb6a;--s1:#e0c040;--s2:#f0913a;--s3:#ef6b6b;color-scheme:dark;}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Thai",sans-serif;-webkit-text-size-adjust:100%}
+.wrap{max-width:760px;margin:0 auto;padding:12px 16px 40px}
+.top{display:flex;align-items:flex-start;gap:10px;margin:4px 0 12px}
+.top h1{font-size:20px;line-height:1.25;margin:0;flex:1 1 auto;min-width:0}
+.top .sub{display:block;font-size:12.5px;font-weight:400;color:var(--ink-3);margin-top:2px}
+.ver{border:1px solid var(--rule-2);background:var(--surface-2);color:var(--ink-3);font:600 11px/1 var(--mono);padding:4px 8px;border-radius:999px;cursor:pointer;margin-left:8px;vertical-align:3px}
+.zth{width:32px;height:32px;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;padding:0;border-radius:999px;border:1px solid var(--rule-2);background:var(--surface);color:var(--ink-2);box-shadow:0 1px 2px rgba(0,0,0,.08);cursor:pointer}
+.zth:hover{background:var(--surface-2);color:var(--ink)}
+.zth svg{width:16px;height:16px;display:block}
+button:focus-visible,select:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.btn{font:600 13.5px/1 inherit;font-family:inherit;padding:9px 13px;border-radius:9px;border:1px solid var(--rule-2);background:var(--surface);color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;gap:6px;min-height:38px}
+.btn:hover{background:var(--surface-2)}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.sm{padding:6px 10px;min-height:32px;font-size:12.5px}
+
+/* colour-coded foldable cards */
+.card{--k:var(--k-teal);background:var(--surface);border:1px solid var(--rule);border-left:4px solid var(--k);border-radius:12px;margin:0 0 12px;overflow:hidden}
+.card-h{display:flex;align-items:center;gap:8px;width:100%;padding:11px 14px;border:0;background:color-mix(in srgb,var(--k) 9%,var(--surface));color:var(--ink);font:700 15px/1.3 inherit;font-family:inherit;text-align:left;cursor:pointer}
+.card-h .t{flex:1 1 auto;min-width:0}
+.card-h .chev{flex:0 0 auto;width:18px;height:18px;color:var(--k);transition:transform .15s}
+.card[data-zf="closed"] .chev{transform:rotate(-90deg)}
+.card[data-zf="closed"] .card-b{display:none}
+.card-b{padding:12px 14px 14px;border-top:1px solid var(--rule)}
+.k-teal{--k:var(--k-teal)}.k-blue{--k:var(--k-blue)}.k-amber{--k:var(--k-amber)}.k-green{--k:var(--k-green)}.k-violet{--k:var(--k-violet)}.k-red{--k:var(--k-red)}
+
+/* age group */
+.lbl{font-size:12px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.04em;margin:0 0 6px}
+.seg{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.seg button{font:600 13px/1.2 inherit;font-family:inherit;padding:8px 11px;border-radius:999px;border:1px solid var(--rule-2);background:var(--surface);color:var(--ink-2);cursor:pointer;min-height:36px}
+.seg button[aria-pressed="true"]{background:var(--acc);border-color:var(--acc);color:var(--acc-ink)}
+
+/* readout */
+.readout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;align-items:stretch;margin-bottom:12px}
+.big{grid-column:1/-1;display:flex;align-items:baseline;justify-content:center;gap:8px;flex-wrap:wrap;text-align:center;padding:4px 0 0}
+.big .n{font:800 64px/1 system-ui,-apple-system,"Segoe UI",sans-serif;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.big .u{font-size:16px;color:var(--ink-3);font-weight:600}
+.bigsub{grid-column:1/-1;text-align:center;font-size:13px;color:var(--ink-3);margin-top:-4px;min-height:20px}
+.stat{background:var(--surface-2);border-radius:10px;padding:8px 10px;min-width:0}
+.stat .s-l{font-size:11.5px;color:var(--ink-3);font-weight:600}
+.stat .s-v{font:700 18px/1.25 inherit;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.stat .s-v small{font-size:12px;font-weight:500;color:var(--ink-3)}
+.band{grid-column:1/-1;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;min-height:30px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;font:700 13px/1.25 inherit;border:1px solid currentColor;background:color-mix(in srgb,currentColor 10%,transparent);max-width:100%;text-align:center;border-radius:14px}
+.chip.s0{color:var(--s0)}.chip.s1{color:var(--s1)}.chip.s2{color:var(--s2)}.chip.s3{color:var(--s3)}.chip.na{color:var(--ink-3)}
+
+/* tap pad */
+.pad-wrap{display:flex;justify-content:center;margin:6px 0 10px}
+.pad{position:relative;width:min(62vw,240px);aspect-ratio:1;border-radius:50%;border:0;cursor:pointer;
+  background:radial-gradient(circle at 50% 40%,color-mix(in srgb,var(--acc) 82%,#fff) 0%,var(--acc) 70%);color:var(--acc-ink);
+  box-shadow:0 8px 24px color-mix(in srgb,var(--acc) 35%,transparent),inset 0 -6px 14px rgba(0,0,0,.15);
+  touch-action:manipulation;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;transition:transform .08s}
+.pad:active,.pad.hit{transform:scale(.96)}
+.pad .pc{font:800 54px/1 system-ui,sans-serif;font-variant-numeric:tabular-nums}
+.pad .pl{font:700 14px/1.2 inherit;text-transform:uppercase;letter-spacing:.06em;opacity:.92;padding:0 18px;text-align:center}
+.pad .ring{position:absolute;inset:0;border-radius:50%;pointer-events:none;border:3px solid var(--acc);opacity:0}
+.pad .ring.go{animation:ring .55s ease-out}
+@keyframes ring{from{opacity:.7;transform:scale(1)}to{opacity:0;transform:scale(1.25)}}
+@media (prefers-reduced-motion:reduce){.pad .ring.go{animation:none}.pad{transition:none}}
+
+.prog{margin:4px 0 10px}
+.prog .bar{height:8px;border-radius:99px;background:var(--surface-2);overflow:hidden;border:1px solid var(--rule)}
+.prog .fill{height:100%;width:0;background:var(--acc);transition:width .2s linear}
+.prog .fill.done{background:var(--s0)}
+.prog .pt{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:12.5px;color:var(--ink-3);margin-top:4px}
+.actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.hint{font-size:12.5px;color:var(--ink-3);text-align:center;margin:10px 0 0}
+kbd{font:600 11px/1 var(--mono);border:1px solid var(--rule-2);border-bottom-width:2px;border-radius:4px;padding:2px 5px;background:var(--surface-2);color:var(--ink-2)}
+
+/* chart + log */
+.chart{width:100%;height:auto;display:block}
+.chart text{font:11px system-ui,sans-serif;fill:var(--ink-3)}
+.empty{color:var(--ink-3);font-size:13.5px;margin:0}
+.ivl{font:12.5px/1.6 var(--mono);color:var(--ink-2);overflow-wrap:anywhere;margin:8px 0 0}
+.log{list-style:none;margin:0;padding:0}
+.log li{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--rule);font-size:13.5px}
+.log li:first-child{border-top:0}
+.log .lt{flex:0 0 auto;font:600 12px/1.6 var(--mono);color:var(--ink-3)}
+.log .lx{flex:1 1 auto;min-width:0;overflow-wrap:anywhere}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{text-align:left;padding:6px 8px;border-top:1px solid var(--rule);vertical-align:top}
+th{font-size:12px;color:var(--ink-3);border-top:0}
+td.sc{font-weight:700;white-space:nowrap}
+.note{font-size:12.5px;color:var(--ink-3);margin:8px 0 0}
+.card-b p{margin:0 0 8px}.card-b ul,.card-b ol{margin:0 0 8px;padding-left:20px}
+.src li{margin-bottom:6px;overflow-wrap:anywhere}
+a{color:var(--acc)}
+
+/* toast + changelog modal */
+.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 14px;border-radius:9px;font-size:13.5px;max-width:calc(100vw - 32px);opacity:0;pointer-events:none;transition:opacity .2s;z-index:50;text-align:center}
+.toast.on{opacity:1}
+.zcl-back{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:60}
+.zcl-back[hidden]{display:none}
+.zcl-modal{background:var(--surface);color:var(--ink);border-radius:14px;max-width:520px;width:100%;max-height:85vh;overflow:auto;padding:16px 18px;border:1px solid var(--rule-2)}
+.zcl-modal header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+.zcl-modal h2{font-size:17px;margin:0}
+.cl-item h3{font-size:15px;margin:10px 0 4px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.cl-item h3 span{font-size:12.5px;font-weight:500;color:var(--ink-3)}
+.cl-item h5{margin:6px 0 2px;font-size:12px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.04em}
+.cl-item ul{margin:0;padding-left:20px;font-size:13.5px}
+@media (max-width:420px){.big .n{font-size:56px}.pad .pc{font-size:46px}}
+@media print{.zth,.ver,.pad-wrap,.actions,.hint,.prog,.toast{display:none!important}.card[data-zf] .card-b{display:block!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>Respiratory Rate Counter<button type="button" class="ver" id="verBtn" title="What's new"></button>
+      <span class="sub">Tap once per breath — the rate is worked out from the time between taps</span></h1>
+    <button type="button" class="zth" id="themeBtn"></button>
+  </header>
+
+  <section class="card k-teal" data-key="counter">
+    <button type="button" class="card-h" aria-expanded="true"><span class="t">Counter</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+    <div class="card-b">
+      <div class="lbl" id="ageLbl">Age group (for the score)</div>
+      <div class="seg" id="ageSeg" role="group" aria-labelledby="ageLbl">
+        <button type="button" data-age="adult">Adult ≥16 y</button>
+        <button type="button" data-age="u2m">Infant &lt;2 mo</button>
+        <button type="button" data-age="2to12m">2–12 mo</button>
+        <button type="button" data-age="1to5y">1–5 y</button>
+        <button type="button" data-age="5to16y">5–15 y</button>
+      </div>
+
+      <div class="readout" aria-live="polite">
+        <div class="big"><span class="n" id="rrBig">—</span><span class="u">breaths/min</span></div>
+        <div class="bigsub" id="rrSub">Tap the circle at the start of each breath in</div>
+        <div class="band" id="band"></div>
+      </div>
+
+      <div class="pad-wrap">
+        <button type="button" class="pad" id="pad" aria-label="Tap for each breath"><span class="ring" id="ring"></span><span class="pc" id="padCount">0</span><span class="pl" id="padLbl">Tap each breath</span></button>
+      </div>
+
+      <div class="prog">
+        <div class="bar"><div class="fill" id="progFill"></div></div>
+        <div class="pt"><span id="progT">Counted 0:00 of 1:00</span><span id="progN">0 breaths</span></div>
+      </div>
+
+      <div class="readout">
+        <div class="stat"><div class="s-l">Last 5 breaths</div><div class="s-v" id="rrLast">—</div></div>
+        <div class="stat"><div class="s-l">Interval variation</div><div class="s-v" id="rrVar">—</div></div>
+        <div class="stat"><div class="s-l">Since last tap</div><div class="s-v" id="sinceLast">—</div></div>
+        <div class="stat"><div class="s-l">Longest interval</div><div class="s-v" id="rrLong">—</div></div>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="btn" id="undoBtn" disabled>↶ Undo last tap</button>
+        <button type="button" class="btn" id="resetBtn" disabled>Reset</button>
+        <button type="button" class="btn" id="saveBtn" disabled>Save to log</button>
+        <button type="button" class="btn" id="copyBtn" disabled>Copy</button>
+      </div>
+      <p class="hint">Keyboard: <kbd>Space</kbd> or <kbd>Enter</kbd> = breath · <kbd>Backspace</kbd> = undo · <kbd>Esc</kbd> = reset. A tap more than 60 s after the last one starts a new count.</p>
+    </div>
+  </section>
+
+  <section class="card k-blue" data-key="intervals">
+    <button type="button" class="card-h" aria-expanded="true"><span class="t">Breath-by-breath rate</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+    <div class="card-b">
+      <div id="chartBox"><p class="empty">Bars appear after the second tap: one bar per breath, height = 60 ÷ that interval. The dashed line is the average.</p></div>
+      <p class="ivl" id="ivlList"></p>
+    </div>
+  </section>
+
+  <section class="card k-violet" data-key="log">
+    <button type="button" class="card-h" aria-expanded="true"><span class="t">Saved counts (this session)</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+    <div class="card-b">
+      <ul class="log" id="log"></ul>
+      <p class="empty" id="logEmpty">No saved counts yet. Saved counts stay only until this page is closed.</p>
+      <div class="actions" style="justify-content:flex-start;margin-top:8px"><button type="button" class="btn sm" id="copyLogBtn" disabled>Copy all</button><button type="button" class="btn sm" id="clearLogBtn" disabled>Clear log</button></div>
+    </div>
+  </section>
+
+  <section class="card k-amber" data-key="bands">
+    <button type="button" class="card-h" aria-expanded="true"><span class="t">Score bands used</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+    <div class="card-b">
+      <p><b>Adults ≥16 y — NEWS2 respiration rate score</b> [1]</p>
+      <table>
+        <thead><tr><th>Breaths/min</th><th>NEWS2 points</th></tr></thead>
+        <tbody>
+          <tr><td>≤8</td><td class="sc" style="color:var(--s3)">3</td></tr>
+          <tr><td>9–11</td><td class="sc" style="color:var(--s1)">1</td></tr>
+          <tr><td>12–20</td><td class="sc" style="color:var(--s0)">0</td></tr>
+          <tr><td>21–24</td><td class="sc" style="color:var(--s2)">2</td></tr>
+          <tr><td>≥25</td><td class="sc" style="color:var(--s3)">3</td></tr>
+        </tbody>
+      </table>
+      <p class="note">This is the respiration-rate part of NEWS2 only; the full score adds SpO₂, oxygen, BP, pulse, consciousness and temperature.</p>
+      <p style="margin-top:12px"><b>Children &lt;5 y — WHO IMCI fast breathing</b> [2]</p>
+      <table>
+        <thead><tr><th>Age</th><th>Fast breathing if</th></tr></thead>
+        <tbody>
+          <tr><td>Under 2 months</td><td class="sc">≥60 /min</td></tr>
+          <tr><td>2–12 months</td><td class="sc">≥50 /min</td></tr>
+          <tr><td>12 months – 5 years</td><td class="sc">≥40 /min</td></tr>
+        </tbody>
+      </table>
+      <p class="note">5–15 years: no threshold in this app's sources, so the score shows N/A. The interval-variation figure is shown as a number only; the app does not label it regular or irregular.</p>
+    </div>
+  </section>
+
+  <section class="card k-green" data-key="how">
+    <button type="button" class="card-h" aria-expanded="true"><span class="t">How the rate is calculated</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+    <div class="card-b">
+      <ul>
+        <li>Each tap marks the start of a breath. N taps give N − 1 intervals.</li>
+        <li><b>Rate</b> = 60 × (number of intervals) ÷ (seconds from first to last tap). This is the same as 60 ÷ the mean interval.</li>
+        <li><b>Last 5 breaths</b> uses the last 5 intervals only, so it follows a change in rate faster.</li>
+        <li><b>Interval variation</b> = standard deviation ÷ mean of the intervals (shown from 3 intervals on).</li>
+        <li>The bar fills over 60 s from the first tap. WHO IMCI asks for breaths to be counted over one full minute in children [2]; a short count from a few taps can be off by several breaths per minute.</li>
+        <li>Tap the same point of each breath (e.g. start of chest rise), and watch without telling the patient, as people change their breathing when they know it is being counted.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="card k-red" data-key="sources">
+    <button type="button" class="card-h" aria-expanded="true"><span class="t">Sources</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+    <div class="card-b">
+      <ol class="src">
+        <li>Royal College of Physicians. <i>National Early Warning Score (NEWS) 2: Standardising the assessment of acute-illness severity in the NHS.</i> London: RCP, 2017. <a href="https://www.rcp.ac.uk/improving-care/resources/national-early-warning-score-news-2/" target="_blank" rel="noopener">rcp.ac.uk</a></li>
+        <li>World Health Organization. <i>Integrated Management of Childhood Illness (IMCI) chart booklet.</i> Geneva: WHO, 2014. <a href="https://www.who.int/publications/m/item/integrated-management-of-childhood-illness---chart-booklet-(march-2014)" target="_blank" rel="noopener">who.int</a></li>
+      </ol>
+      <p class="note">A teaching aid; it does not replace clinical judgement.</p>
+    </div>
+  </section>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+<div class="zcl-back" id="clModal" hidden>
+  <div class="zcl-modal" role="dialog" aria-modal="true" aria-labelledby="clTitle">
+    <header><h2 id="clTitle">What's new</h2><button type="button" class="btn sm" data-close>Close</button></header>
+    <div id="clBody"></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+
+/* ---------- changelog ---------- */
+const changelogData=[
+  {version:'v1.0.0',date:'October 19, 2026',features:[
+    'Tap once per breath; the respiratory rate is calculated from the time between taps (average of all breaths and of the last 5).',
+    'Live readout with interval variation, time since last tap, longest interval and a 60-second progress bar.',
+    'Breath-by-breath bar chart, undo last tap, reset, copy, and a session log of saved counts.',
+    'NEWS2 respiration-rate points for adults and WHO IMCI fast-breathing thresholds for children under 5, with sources.',
+    'Keyboard shortcuts, vibration on tap (phones that support it), colour-coded foldable blocks, sun/moon theme, phone layout.'],bugs:[]}
+];
+$('verBtn').textContent=changelogData[0].version;
+let clBack=null;
+function openCL(){clBack=document.activeElement;$('clBody').innerHTML=changelogData.map(l=>`<div class="cl-item"><h3>${l.version}<span>${l.date}</span></h3>${l.features.length?'<h5>New</h5><ul>'+l.features.map(x=>`<li>${x}</li>`).join('')+'</ul>':''}${l.bugs.length?'<h5>Fixed</h5><ul>'+l.bugs.map(x=>`<li>${x}</li>`).join('')+'</ul>':''}</div>`).join('');$('clModal').hidden=false;document.body.style.overflow='hidden';try{$('clModal').querySelector('[data-close]').focus();}catch(e){}}
+function closeCL(){$('clModal').hidden=true;document.body.style.overflow='';try{clBack&&clBack.focus();}catch(e){}}
+$('verBtn').addEventListener('click',openCL);
+$('clModal').addEventListener('click',e=>{if(e.target.id==='clModal'||e.target.closest('[data-close]'))closeCL();});
+
+/* ---------- theme: sun/moon ---------- */
+const root=document.documentElement;
+const SUN='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>';
+const MOON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>';
+const mq=window.matchMedia?window.matchMedia('(prefers-color-scheme: dark)'):null;
+const curTheme=()=>{const a=root.getAttribute('data-theme');if(a==='light'||a==='dark')return a;return mq&&mq.matches?'dark':'light';};
+function paintTheme(){const d=curTheme()==='dark',b=$('themeBtn');b.innerHTML=d?SUN:MOON;const l=d?'Switch to light mode':'Switch to dark mode';b.setAttribute('aria-label',l);b.title=l;}
+function setTheme(v){root.setAttribute('data-theme',v);paintTheme();try{localStorage.setItem('rrc-theme',v);}catch(e){}}
+$('themeBtn').addEventListener('click',()=>setTheme(curTheme()==='dark'?'light':'dark'));
+if(mq){if(mq.addEventListener)mq.addEventListener('change',paintTheme);else if(mq.addListener)mq.addListener(paintTheme);}
+try{const v=localStorage.getItem('rrc-theme');if(v==='light'||v==='dark')root.setAttribute('data-theme',v);}catch(e){}
+paintTheme();
+
+/* ---------- foldable blocks (main block open by default) ---------- */
+const FOLD_KEY='zfold2:'+document.title;
+let foldState={};try{foldState=JSON.parse(localStorage.getItem(FOLD_KEY)||'{}')||{};}catch(e){}
+document.querySelectorAll('.card').forEach(c=>{
+  const k=c.dataset.key,h=c.querySelector('.card-h');
+  const open=foldState[k]?foldState[k]==='o':k==='counter';
+  const apply=o=>{c.dataset.zf=o?'open':'closed';h.setAttribute('aria-expanded',o);};
+  apply(open);
+  h.addEventListener('click',()=>{const o=c.dataset.zf!=='open';apply(o);foldState[k]=o?'o':'c';try{localStorage.setItem(FOLD_KEY,JSON.stringify(foldState));}catch(e){}});
+});
+
+/* ---------- age group ---------- */
+const AGE_KEY='rrc-age';
+let age='adult';try{const a=localStorage.getItem(AGE_KEY);if(a)age=a;}catch(e){}
+const AGES={adult:'Adult ≥16 y',u2m:'Infant <2 mo','2to12m':'2–12 mo','1to5y':'1–5 y','5to16y':'5–15 y'};
+if(!AGES[age])age='adult';
+function paintAge(){document.querySelectorAll('#ageSeg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.age===age));}
+$('ageSeg').addEventListener('click',e=>{const b=e.target.closest('button[data-age]');if(!b)return;age=b.dataset.age;try{localStorage.setItem(AGE_KEY,age);}catch(e){}paintAge();render();});
+paintAge();
+
+/* Score for a whole-number rate. Returns {cls,text}. Sources: [1] NEWS2, [2] WHO IMCI. */
+function scoreFor(rr){
+  if(age==='adult'){
+    const p=rr<=8?3:rr<=11?1:rr<=20?0:rr<=24?2:3;
+    const word=rr<=11?'low':rr<=20?'normal range':'high';
+    return {cls:'s'+p,text:`NEWS2 RR points: ${p} (${word})`};
+  }
+  const cut={u2m:60,'2to12m':50,'1to5y':40}[age];
+  if(!cut)return {cls:'na',text:'Score N/A for 5–15 y (no threshold in sources)'};
+  return rr>=cut?{cls:'s3',text:`Fast breathing (WHO ≥${cut}/min)`}:{cls:'s0',text:`Not fast breathing (WHO threshold ${cut}/min)`};
+}
+
+/* ---------- counting ---------- */
+const NEW_COUNT_GAP=60000, FULL_MIN=60000, LAST_N=5;
+let taps=[];          // performance.now() timestamps
+let wallStart=null;   // Date of first tap
+const now=()=>performance.now();
+
+function stats(){
+  const n=taps.length;if(n<2)return null;
+  const iv=[];for(let i=1;i<n;i++)iv.push(taps[i]-taps[i-1]);
+  const span=taps[n-1]-taps[0];
+  const avg=60000*iv.length/span;
+  const k=Math.min(LAST_N,iv.length);
+  const last=60000*k/(taps[n-1]-taps[n-1-k]);
+  const mean=span/iv.length;
+  let cv=null;
+  if(iv.length>=3){const sd=Math.sqrt(iv.reduce((s,x)=>s+(x-mean)**2,0)/(iv.length-1));cv=sd/mean;}
+  return {n,iv,span,avg,last,k,cv,longest:Math.max(...iv)};
+}
+const fmtS=ms=>(ms/1000).toFixed(1)+' s';
+const fmtClock=ms=>{const s=Math.floor(ms/1000);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');};
+const r1=x=>Math.round(x*10)/10;
+
+function tap(){
+  const t=now();
+  if(taps.length&&t-taps[taps.length-1]>NEW_COUNT_GAP){taps=[];toast('More than 60 s since the last tap — new count started');}
+  if(!taps.length)wallStart=new Date();
+  taps.push(t);
+  const ring=$('ring');ring.classList.remove('go');void ring.offsetWidth;ring.classList.add('go');
+  const pad=$('pad');pad.classList.add('hit');setTimeout(()=>pad.classList.remove('hit'),90);
+  try{navigator.vibrate&&navigator.vibrate(18);}catch(e){}
+  render();
+}
+function undo(){if(!taps.length)return;taps.pop();if(!taps.length)wallStart=null;render();}
+function reset(){taps=[];wallStart=null;render();}
+
+function summary(s){
+  const sc=scoreFor(Math.round(s.avg));
+  const when=wallStart?wallStart.toLocaleString(undefined,{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'';
+  return `RR ${Math.round(s.avg)}/min (${s.n} breaths over ${fmtS(s.span)}; last ${s.k}: ${Math.round(s.last)}/min${s.cv!=null?'; interval variation ±'+Math.round(s.cv*100)+'%':''}) — ${AGES[age]}: ${sc.text} — ${when}`;
+}
+
+function render(){
+  const s=stats(),n=taps.length;
+  $('padCount').textContent=n;
+  $('padLbl').textContent=n===0?'Tap each breath':n===1?'Tap next breath':'Breaths';
+  $('progN').textContent=n+(n===1?' breath':' breaths');
+  $('undoBtn').disabled=!n;$('resetBtn').disabled=!n;$('saveBtn').disabled=!s;$('copyBtn').disabled=!s;
+  if(!s){
+    $('rrBig').textContent='—';$('rrLast').textContent='—';$('rrVar').textContent='—';$('rrLong').textContent='—';
+    $('rrSub').textContent=n?'Tap again at the start of the next breath':'Tap the circle at the start of each breath in';
+    $('band').innerHTML='';
+  }else{
+    $('rrBig').textContent=Math.round(s.avg);
+    $('rrSub').textContent=`Average of ${s.iv.length} interval${s.iv.length>1?'s':''} over ${fmtS(s.span)} (${r1(s.avg)}/min)`;
+    $('rrLast').innerHTML=`${Math.round(s.last)} <small>/min</small>`;
+    $('rrVar').innerHTML=s.cv==null?'<small>needs 3 intervals</small>':`±${Math.round(s.cv*100)}%`;
+    $('rrLong').innerHTML=`${(s.longest/1000).toFixed(1)} <small>s</small>`;
+    const sc=scoreFor(Math.round(s.avg));
+    $('band').innerHTML=`<span class="chip ${sc.cls}">${sc.text}</span>`;
+  }
+  renderChart(s);
+  tick();
+}
+
+function tick(){
+  const n=taps.length;
+  if(!n){$('sinceLast').textContent='—';$('progFill').style.width='0';$('progFill').classList.remove('done');$('progT').textContent='Counted 0:00 of 1:00';return;}
+  const t=now(),since=t-taps[n-1];
+  $('sinceLast').innerHTML=since>NEW_COUNT_GAP?'<small>next tap starts new count</small>':`${(since/1000).toFixed(1)} <small>s</small>`;
+  const span=taps[n-1]-taps[0];
+  const el=Math.min(t-taps[0],since>NEW_COUNT_GAP?span:Infinity);
+  $('progFill').style.width=Math.min(100,el/FULL_MIN*100)+'%';
+  $('progFill').classList.toggle('done',span>=FULL_MIN);
+  $('progT').textContent=span>=FULL_MIN?`Counted ${fmtClock(span)} — full minute ✓`:`Counted ${fmtClock(el)} of 1:00`;
+}
+setInterval(()=>{if(taps.length)tick();},200);
+
+function renderChart(s){
+  const box=$('chartBox');
+  if(!s){box.innerHTML='<p class="empty">Bars appear after the second tap: one bar per breath, height = 60 ÷ that interval. The dashed line is the average.</p>';$('ivlList').textContent='';return;}
+  const rates=s.iv.map(x=>60000/x).slice(-40);
+  const W=600,H=180,L=34,R=8,T=10,B=22;
+  const top=Math.max(30,Math.ceil(Math.max(...rates,s.avg)/10)*10);
+  const y=v=>T+(H-T-B)*(1-v/top);
+  const bw=(W-L-R)/rates.length;
+  let g='';
+  for(let v=0;v<=top;v+=top>60?20:10)g+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--rule)"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${v}</text>`;
+  const bars=rates.map((r,i)=>{const x=L+i*bw+bw*.15,h=y(0)-y(r);return `<rect x="${x.toFixed(1)}" y="${y(r).toFixed(1)}" width="${(bw*.7).toFixed(1)}" height="${h.toFixed(1)}" rx="2" fill="var(--k-blue)" opacity=".8"><title>Breath ${s.iv.length-rates.length+i+1}: ${r.toFixed(1)}/min</title></rect>`;}).join('');
+  const avgLine=`<line x1="${L}" x2="${W-R}" y1="${y(s.avg)}" y2="${y(s.avg)}" stroke="var(--acc)" stroke-width="2" stroke-dasharray="6 4"/>`;
+  box.innerHTML=`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Breath-by-breath rate chart">${g}${bars}${avgLine}<text x="${L}" y="${H-5}">breaths/min per interval${rates.length<s.iv.length?' (last 40)':''}</text></svg>`;
+  $('ivlList').textContent='Intervals (s): '+s.iv.map(x=>(x/1000).toFixed(1)).join(' · ');
+}
+
+/* ---------- log ---------- */
+let log=[];
+function renderLog(){
+  $('log').innerHTML=log.map(e=>`<li><span class="lt">${e.time}</span><span class="lx">${e.text.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</span></li>`).join('');
+  $('logEmpty').hidden=log.length>0;$('copyLogBtn').disabled=!log.length;$('clearLogBtn').disabled=!log.length;
+}
+$('saveBtn').addEventListener('click',()=>{const s=stats();if(!s)return;log.unshift({time:new Date().toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}),text:summary(s)});renderLog();toast('Saved to log');
+  const c=document.querySelector('.card[data-key="log"]');if(c.dataset.zf!=='open')c.querySelector('.card-h').click();});
+$('clearLogBtn').addEventListener('click',()=>{log=[];renderLog();});
+$('copyLogBtn').addEventListener('click',()=>copyText(log.map(e=>e.text).join('\n')));
+$('copyBtn').addEventListener('click',()=>{const s=stats();if(s)copyText(summary(s));});
+renderLog();
+
+function copyText(t){
+  const done=()=>toast('Copied');
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(done,()=>fallback());else fallback();
+  function fallback(){const a=document.createElement('textarea');a.value=t;a.style.position='fixed';a.style.opacity='0';document.body.appendChild(a);a.select();try{document.execCommand('copy');done();}catch(e){toast('Copy failed');}a.remove();}
+}
+let toastT=null;
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),2200);}
+
+/* ---------- input ---------- */
+// pointerdown counts the moment the finger lands (no click delay); click is kept for keyboard/AT activation only.
+let lastPointer=0;
+$('pad').addEventListener('pointerdown',e=>{if(e.button!==0)return;e.preventDefault();lastPointer=now();tap();});
+$('pad').addEventListener('click',e=>{if(now()-lastPointer<700)return;if(e.detail===0)tap();});
+$('pad').addEventListener('contextmenu',e=>e.preventDefault());
+$('undoBtn').addEventListener('click',undo);
+$('resetBtn').addEventListener('click',reset);
+document.addEventListener('keydown',e=>{
+  if(!$('clModal').hidden){if(e.key==='Escape')closeCL();return;}
+  if(e.ctrlKey||e.metaKey||e.altKey||e.repeat)return;
+  const tag=(e.target.tagName||'').toLowerCase();
+  const onPad=e.target===$('pad');
+  if((e.key===' '||e.key==='Enter')&&(onPad||e.target===document.body)){e.preventDefault();tap();}
+  else if(e.key==='Backspace'&&tag!=='input'&&tag!=='textarea'){e.preventDefault();undo();}
+  else if(e.key==='Escape'&&taps.length){reset();}
+});
+render();
+</script>
+</body>
+</html>
